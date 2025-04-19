@@ -85,81 +85,90 @@
   </div>
 
   <script>
-    (async()=> {
-      const params = new URLSearchParams(window.location.search);
-      const city  = params.get("city")  || "";
-      const start = params.get("start") || "";
-      const end   = params.get("end")   || "";
-      const time  = params.get("time")  || "";
-      const title = document.getElementById("report-title");
-      const content = document.getElementById("ephemerides-content");
+    <script>
+(async () => {
+  const params = new URLSearchParams(window.location.search);
+  const city  = params.get("city")  || "";
+  const start = params.get("start") || "";
+  const end   = params.get("end")   || "";
+  const time  = params.get("time")  || "";
 
-      if(!city||!start||!end||!time) {
-        title.innerText = "Неправильні параметри";
-        content.innerHTML = `<p style="color:red;">Будь ласка, передайте в URL усі параметри: city, start, end, time.</p>`;
-        return;
-      }
+  // 1) Мапа англ→укр назв планет
+  const PLANET_NAMES = {
+    Sun:      'Сонце',
+    Moon:     'Місяць',
+    Mercury:  'Меркурій',
+    Venus:    'Венера',
+    Mars:     'Марс',
+    Jupiter:  'Юпітер',
+    Saturn:   'Сатурн',
+    Uranus:   'Уран',
+    Neptune:  'Нептун',
+    Pluto:    'Плутон',
+    // Якщо в positions є інші ключі – додай сюди
+  };
 
-      title.innerText = `Ефемериди для ${city} з ${start} по ${end} (${time})`;
-      content.innerHTML = "";
+  // 2) Мапа англ→укр назв аспектів
+  const ASPECT_NAMES = {
+    conjunction: 'з’єднання',
+    opposition:  'опозиція',
+    trine:       'трин',
+    square:      'квадратура',
+    sextile:     'секстиль',
+    // Додай інші, якщо потрібно
+  };
 
-      // 1) Геокодинг
-      let places = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(city)}`
-      ).then(r=>r.json()).catch(_=>[]);
-      if(!places.length) {
-        content.innerHTML = `<p style="color:red;">Місто "${city}" не знайдено</p>`;
-        return;
-      }
-      const { lat, lon } = places[0];
+  // ... (твоїй код до виклику fetch геокоду)
+  // Після отримання data:
+  const SIGNS = ['Овен','Телець','Близнюки','Рак','Лев','Діва','Терези','Скорпіон','Стрілець','Козоріг','Водолій','Риби'];
+  const content = document.getElementById("ephemerides-content");
+  content.innerHTML = "";
 
-      // 2) Запрос эфемерид по каждому дню
-      const SIGNS = ['Овен','Телець','Близнюки','Рак','Лев','Діва','Терези','Скорпіон','Стрілець','Козоріг','Водолій','Риби'];
-      const dStart = new Date(start), dEnd = new Date(end);
-      for(let d=new Date(dStart); d<=dEnd; d.setDate(d.getDate()+1)) {
-        const ds = d.toISOString().split('T')[0];
-        // локальное -> UTC
-        const local = new Date(`${ds}T${time}`);
-        const utc = new Date(local.getTime() + local.getTimezoneOffset()*60000);
-        const tp = `${String(utc.getUTCHours()).padStart(2,'0')}:`
-                 +`${String(utc.getUTCMinutes()).padStart(2,'0')}:`
-                 +`${String(utc.getUTCSeconds()).padStart(2,'0')}`;
-        // API
-        const [Y,M,D] = ds.split('-');
-        const apiUrl = `https://ephemerides-api.onrender.com/ephemerides`
-          +`?year=${Y}&month=${M}&day=${D}&time=${tp}&lat=${lat}&lon=${lon}`;
-        const resp = await fetch(apiUrl);
-        const txt = await resp.text();
-        if(!resp.ok) {
-          content.innerHTML += `<h3>${ds}</h3><p style="color:red;">${txt}</p>`;
-          continue;
-        }
-        const data = JSON.parse(txt);
-        // отрисовка
-        let html = `<h3>${ds}</h3>`;
-        const st = data.sidereal_time, H=Math.floor(st), m=Math.floor((st-H)*60),
-              s=Math.round((((st-H)*60)-m)*60);
-        html += `<p><strong>Сидеричний час:</strong> ${H}ч ${m}м ${s}с; `
-             + `<strong>ASC:</strong> ${data.asc?.toFixed(2)||'-'}°; `
-             + `<strong>MC:</strong> ${data.mc?.toFixed(2)||'-'}°</p>`;
-        // таблица планет
-        html += `<table><thead><tr><th>Планета</th><th>Довгота,°</th><th>Знак</th></tr></thead><tbody>`;
-        for(let [pl,lonVal] of Object.entries(data.positions)) {
-          const idx = Math.floor((lonVal%360)/30),
-                deg = (lonVal%30).toFixed(2);
-          html += `<tr><td>${pl}</td><td>${lonVal.toFixed(2)}</td><td>${SIGNS[idx]} ${deg}°</td></tr>`;
-        }
-        html += `</tbody></table>`;
-        // аспекты
-        html += `<table><thead><tr><th>Аспект</th><th>Між</th><th>Кут,°</th></tr></thead><tbody>`;
-        for(let a of data.aspects) {
-          html += `<tr><td>${a.aspect}</td><td>${a.between.join(' – ')}</td><td>${a.angle.toFixed(2)}</td></tr>`;
-        }
-        html += `</tbody></table>`;
-        content.innerHTML += html;
-      }
-    })();
-  </script>
+  // Припустимо, ти вже дістяв lat, lon, dStart, dEnd
+  for (let d = new Date(start); d <= new Date(end); d.setDate(d.getDate()+1)) {
+    const ds = d.toISOString().split('T')[0];
+    // ... твій код конвертації часу і запиту API ...
+    const data = await fetch(apiUrl).then(r=>r.json());
+
+    // Сиферичний час, ASC/MC — без змін
+    let html = `<h3>${ds}</h3>`;
+    // ...
+
+    // 3) Таблиця позицій планет з українськими іменами:
+    html += `<table><thead><tr><th>Планета</th><th>Довгота,°</th><th>Знак</th></tr></thead><tbody>`;
+    for (let [pl, lonVal] of Object.entries(data.positions)) {
+      const nameUa = PLANET_NAMES[pl] || pl;
+      const idx = Math.floor((lonVal % 360) / 30);
+      const deg = (lonVal % 30).toFixed(2);
+      html += `<tr>
+        <td>${nameUa}</td>
+        <td>${lonVal.toFixed(2)}</td>
+        <td>${SIGNS[idx]} ${deg}°</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+
+    // 4) Таблиця аспектів з українськими назвами:
+    html += `<table><thead><tr><th>Аспект</th><th>Між</th><th>Кут,°</th></tr></thead><tbody>`;
+    for (let a of data.aspects) {
+      const aspectUa = ASPECT_NAMES[a.aspect] || a.aspect;
+      // Перекладаємо обидві планети в аспекті
+      const betweenUa = a.between
+        .map(pl => PLANET_NAMES[pl] || pl)
+        .join(' – ');
+      html += `<tr>
+        <td>${aspectUa}</td>
+        <td>${betweenUa}</td>
+        <td>${a.angle.toFixed(2)}</td>
+      </tr>`;
+    }
+    html += `</tbody></table>`;
+
+    content.innerHTML += html;
+  }
+})();
+</script>
+
 
 </body>
 </html>
