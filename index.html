@@ -4,11 +4,70 @@
   <meta charset="utf-8">
   <title>Ефемериди</title>
   <style>
-    /* ...твой CSS без изменений... */
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      padding: 30px;
+      background: #fff;
+      color: #2c3e50;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      border-bottom: 2px solid #ddd;
+      padding-bottom: 20px;
+      margin-bottom: 30px;
+    }
+    .header img {
+      height: 70px;
+      margin-right: 20px;
+    }
+    .header-text h1 {
+      font-size: 20px;
+      margin: 0 0 6px;
+      font-weight: 600;
+    }
+    .header-text p {
+      margin: 0;
+      font-size: 14px;
+      color: #555;
+    }
+    #report-title {
+      font-size: 22px;
+      margin: 0 0 25px;
+    }
+    h3 {
+      margin: 30px 0 10px;
+      font-size: 18px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 20px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 10px;
+      text-align: center;
+      border: 1px solid #ddd;
+    }
+    th {
+      background: #34495E;
+      color: #ECF0F1;
+      font-weight: 600;
+    }
+    tr:nth-child(even) {
+      background: #F7F9FA;
+    }
+    .footer {
+      margin-top: 50px;
+      font-size: 12px;
+      text-align: center;
+      color: #888;
+    }
   </style>
 </head>
 <body>
-  <!-- header, title и контейнер -->
+
   <div class="header">
     <img src="https://i.postimg.cc/DZh0SV41/image.png" alt="Логотип">
     <div class="header-text">
@@ -16,8 +75,10 @@
       <p><a href="https://e-terra.com.ua" target="_blank">https://e-terra.com.ua</a></p>
     </div>
   </div>
+
   <h2 id="report-title">Ефемериди</h2>
   <div id="ephemerides-content">Завантаження…</div>
+
   <div class="footer">
     Звіт згенеровано автоматично. Дані: NASA JPL / Ephemerides API.<br>
     Інститут Е-ТЕРРА, © 2025
@@ -25,24 +86,26 @@
 
   <script>
   (async () => {
-    const params = new URLSearchParams(window.location.search);
-    const city  = params.get("city")  || "";
-    const start = params.get("start") || "";
-    const end   = params.get("end")   || "";
-    const time  = params.get("time")  || "";
+    // Парсим параметры
+    const p = new URLSearchParams(window.location.search);
+    const city  = p.get("city")  || "";
+    const start = p.get("start") || "";
+    const end   = p.get("end")   || "";
+    const time  = p.get("time")  || "";
     const titleEl = document.getElementById("report-title");
     const content = document.getElementById("ephemerides-content");
 
+    // Проверка
     if (!city || !start || !end || !time) {
       titleEl.innerText = "Неправильні параметри";
-      content.innerHTML = '<p style="color:red;">Передайте в URL: city, start, end, time</p>';
+      content.innerHTML = '<p style="color:red;">❗ Передайте в URL: city, start, end, time</p>';
       return;
     }
 
     titleEl.innerText = `Ефемериди для ${city} з ${start} по ${end} (${time})`;
     content.innerHTML = "";
 
-    // Мапи перекладу
+    // Словари для украинских названий
     const PLANET_NAMES = {
       Sun:'Сонце', Moon:'Місяць', Mercury:'Меркурій', Venus:'Венера',
       Mars:'Марс', Jupiter:'Юпітер', Saturn:'Сатурн', Uranus:'Уран',
@@ -55,58 +118,68 @@
     const SIGNS = ['Овен','Телець','Близнюки','Рак','Лев','Діва','Терези','Скорпіон','Стрілець','Козоріг','Водолій','Риби'];
 
     // 1) Геокодинг
-    const places = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(city)}`
-    ).then(r=>r.json()).catch(()=>[]);
+    let places = [];
+    try {
+      places = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(city)}`
+      ).then(r=>r.json());
+    } catch(e){}
     if (!places.length) {
       content.innerHTML = `<p style="color:red;">Місто "${city}" не знайдено</p>`;
       return;
     }
     const { lat, lon } = places[0];
 
-    // 2) Запит і відрисовка по днях
-    const dStart = new Date(start), dEnd = new Date(end);
-    for (let d=new Date(dStart); d<=dEnd; d.setDate(d.getDate()+1)) {
-      const ds = d.toISOString().split('T')[0];
-      // UTC-час
-      const local = new Date(`${ds}T${time}`);
-      const utc = new Date(local.getTime() + local.getTimezoneOffset()*60000);
-      const tp = `${utc.getUTCHours().toString().padStart(2,'0')}:`
-               +`${utc.getUTCMinutes().toString().padStart(2,'0')}:`
-               +`${utc.getUTCSeconds().toString().padStart(2,'0')}`;
-      // API
-      const [Y,M,D] = ds.split('-');
+    // 2) За каждым днём
+    const ds = new Date(start);
+    const de = new Date(end);
+    for (let d = new Date(ds); d <= de; d.setDate(d.getDate()+1)) {
+      const date = d.toISOString().split('T')[0];
+
+      // Конвертация лок. -> UTC time
+      const loc = new Date(`${date}T${time}`);
+      const utc = new Date(loc.getTime() + loc.getTimezoneOffset()*60000);
+      const tp = [utc.getUTCHours(),utc.getUTCMinutes(),utc.getUTCSeconds()]
+        .map(n=>String(n).padStart(2,'0')).join(':');
+
+      // Запрос эфемерид
+      const [Y,M,D] = date.split('-');
       const apiUrl = `https://ephemerides-api.onrender.com/ephemerides`
-        +`?year=${Y}&month=${M}&day=${D}&time=${tp}&lat=${lat}&lon=${lon}`;
-      const res = await fetch(apiUrl);
-      const txt = await res.text();
-      if (!res.ok) {
-        content.innerHTML += `<h3>${ds}</h3><p style="color:red;">${txt}</p>`;
+        + `?year=${Y}&month=${M}&day=${D}&time=${tp}&lat=${lat}&lon=${lon}`;
+      let data;
+      try {
+        const res = await fetch(apiUrl);
+        if (!res.ok) throw await res.text();
+        data = await res.json();
+      } catch(err) {
+        content.innerHTML += `<h3>${date}</h3><p style="color:red;">${err}</p>`;
         continue;
       }
-      const data = JSON.parse(txt);
 
-      // Шапка дня
-      let html = `<h3>${ds}</h3>`;
-      const st = data.sidereal_time, H=Math.floor(st),
-            m=Math.floor((st-H)*60), s=Math.round((st-H)*3600 - m*60);
+      // Рендерим день
+      let html = `<h3>${date}</h3>`;
+      const st = data.sidereal_time;
+      const H  = Math.floor(st);
+      const m  = Math.floor((st - H) * 60);
+      const s  = Math.round((st - H) * 3600 - m * 60);
       html += `<p><strong>Сидеричний час:</strong> ${H}ч ${m}м ${s}с; `
-           + `<strong>ASC:</strong> ${data.asc?.toFixed(2)||'-'}°; `
-           + `<strong>MC:</strong> ${data.mc?.toFixed(2)||'-'}°</p>`;
+           + `<strong>ASC:</strong> ${data.asc?.toFixed(2) || '-'}°; `
+           + `<strong>MC:</strong> ${data.mc?.toFixed(2) || '-'}°</p>`;
 
-      // Таблиця планет
+      // Планеты
       html += `<table><thead><tr><th>Планета</th><th>Довгота,°</th><th>Знак</th></tr></thead><tbody>`;
       for (const [pl, lonVal] of Object.entries(data.positions)) {
-        const nameUa = PLANET_NAMES[pl]||pl;
-        const idx = Math.floor((lonVal%360)/30), deg=(lonVal%30).toFixed(2);
+        const nameUa = PLANET_NAMES[pl] || pl;
+        const idx = Math.floor((lonVal % 360) / 30);
+        const deg = (lonVal % 30).toFixed(2);
         html += `<tr><td>${nameUa}</td><td>${lonVal.toFixed(2)}</td><td>${SIGNS[idx]} ${deg}°</td></tr>`;
       }
       html += `</tbody></table>`;
 
-      // Таблиця аспектів
+      // Аспекты
       html += `<table><thead><tr><th>Аспект</th><th>Між</th><th>Кут,°</th></tr></thead><tbody>`;
       for (const a of data.aspects) {
-        const aspectUa = ASPECT_NAMES[a.aspect]||a.aspect;
+        const aspectUa = ASPECT_NAMES[a.aspect] || a.aspect;
         const betweenUa = a.between.map(pl=>PLANET_NAMES[pl]||pl).join(' – ');
         html += `<tr><td>${aspectUa}</td><td>${betweenUa}</td><td>${a.angle.toFixed(2)}</td></tr>`;
       }
