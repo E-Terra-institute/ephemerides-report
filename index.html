@@ -189,6 +189,29 @@
     }
   })();
   </script>
+<!-- Подключаем html2pdf.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+<!-- Кнопка -->
+<div style="text-align:center; margin-top:20px;">
+  <button onclick="downloadPDF()" style="padding:10px 20px; font-size:16px; background:#2c3e50; color:#fff; border:none; border-radius:6px; cursor:pointer;">
+    📥 Скачать PDF
+  </button>
+</div>
+
+<script>
+function downloadPDF() {
+  const element = document.body.cloneNode(true);
+  element.querySelector('button')?.remove(); // убираем кнопку из PDF
+  html2pdf().from(element).set({
+    margin: 1,
+    filename: 'efemeridy.pdf',
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'cm', format: 'a4', orientation: 'portrait' }
+  }).save();
+}
+</script>
 
 </body>
 </html>
