@@ -64,47 +64,26 @@
       text-align: center;
       color: #888;
     }
-    .pdf-button {
-      display: none;
-      margin: 30px auto;
-      padding: 12px 24px;
-      font-size: 16px;
-      background: #2c3e50;
-      color: white;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
-    }
   </style>
 </head>
 <body>
 
-  <!-- Обёртка для PDF -->
-  <div id="pdf-container">
-
-    <div class="header">
-      <img src="https://i.postimg.cc/DZh0SV41/image.png" alt="Логотип">
-      <div class="header-text">
-        <h1>Міжнародний інститут прикладної астрології, парапсихології та досліджень аномальних явищ Е-ТЕРРА</h1>
-        <p><a href="https://e-terra.com.ua" target="_blank">https://e-terra.com.ua</a></p>
-      </div>
+  <div class="header">
+    <img src="https://i.postimg.cc/DZh0SV41/image.png" alt="Логотип">
+    <div class="header-text">
+      <h1>Міжнародний інститут прикладної астрології, парапсихології та досліджень аномальних явищ Е-ТЕРРА</h1>
+      <p><a href="https://e-terra.com.ua" target="_blank">https://e-terra.com.ua</a></p>
     </div>
-
-    <h2 id="report-title">Ефемериди</h2>
-    <div id="ephemerides-content">Завантаження…</div>
-
-    <div class="footer">
-      Розрахунки: Swiss Ephemeris (JPL DE431), Astrodienst AG.<br>
-      Інститут Е-ТЕРРА, © 2025
-    </div>
-
   </div>
 
-  <!-- Кнопка PDF -->
-  <button id="btn-pdf" class="pdf-button" onclick="downloadPDF()">📥 Скачать PDF</button>
+  <h2 id="report-title">Ефемериди</h2>
+  <div id="ephemerides-content">Завантаження…</div>
 
-  <!-- html2pdf.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <div class="footer">
+    Розрахунки: Swiss Ephemeris (JPL DE431), Astrodienst AG.<br>
+    Інститут Е-ТЕРРА, © 2025
+  </div>
+
   <script>
   (async function() {
     const params = new URLSearchParams(window.location.search);
@@ -114,17 +93,16 @@
     const time  = params.get("time")  || "";
     const titleEl = document.getElementById("report-title");
     const content = document.getElementById("ephemerides-content");
-    const btnPdf = document.getElementById("btn-pdf");
 
-    // Проверка параметров
     if (!city || !start || !end || !time) {
       titleEl.innerText = "Неправильні параметри";
       content.innerHTML = '<p style="color:red;">Передайте в URL: city, start, end, time</p>';
       return;
     }
-    titleEl.innerText = `Ефемериди для ${city} з ${start} по ${end} (${time})`;
 
-    // Словари для украинских названий
+    titleEl.innerText = `Ефемериди для ${city} з ${start} по ${end} (${time})`;
+    content.innerHTML = "";
+
     const PLANET_NAMES = {
       Sun:'Сонце', Moon:'Місяць', Mercury:'Меркурій', Venus:'Венера',
       Mars:'Марс', Jupiter:'Юпітер', Saturn:'Сатурн', Uranus:'Уран',
@@ -141,8 +119,8 @@
     try {
       places = await fetch(
         `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(city)}`
-      ).then(r=>r.json());
-    } catch(e){}
+      ).then(r => r.json());
+    } catch (e) {}
     if (!places.length) {
       content.innerHTML = `<p style="color:red;">Місто "${city}" не знайдено</p>`;
       return;
@@ -156,22 +134,22 @@
       const loc = new Date(`${date}T${time}`);
       const utc = new Date(loc.getTime() + loc.getTimezoneOffset()*60000);
       const tp = [utc.getUTCHours(), utc.getUTCMinutes(), utc.getUTCSeconds()]
-        .map(n=>String(n).padStart(2,'0')).join(':');
+        .map(n => String(n).padStart(2,'0')).join(':');
 
       const [Y,M,D] = date.split('-');
       const apiUrl = `https://ephemerides-api.onrender.com/ephemerides`
-        +`?year=${Y}&month=${M}&day=${D}&time=${tp}&lat=${lat}&lon=${lon}`;
+        + `?year=${Y}&month=${M}&day=${D}&time=${tp}&lat=${lat}&lon=${lon}`;
       let data;
       try {
         const res = await fetch(apiUrl);
         if (!res.ok) throw await res.text();
         data = await res.json();
-      } catch(err) {
+      } catch (err) {
         content.innerHTML += `<h3>${date}</h3><p style="color:red;">${err}</p>`;
         continue;
       }
 
-      // Рендер дня
+      // Рендерим день
       let html = `<h3>${date}</h3>`;
       const st = data.sidereal_time;
       const H = Math.floor(st),
@@ -181,6 +159,7 @@
            + `<strong>ASC:</strong> ${data.asc?.toFixed(2)||'-'}°; `
            + `<strong>MC:</strong> ${data.mc?.toFixed(2)||'-'}°</p>`;
 
+      // Таблица планет
       html += `<table><thead><tr><th>Планета</th><th>Довгота,°</th><th>Знак</th></tr></thead><tbody>`;
       for (const [pl, lonVal] of Object.entries(data.positions)) {
         const nameUa = PLANET_NAMES[pl] || pl;
@@ -190,31 +169,18 @@
       }
       html += `</tbody></table>`;
 
+      // Таблица аспектов
       html += `<table><thead><tr><th>Аспект</th><th>Між</th><th>Кут,°</th></tr></thead><tbody>`;
       for (const a of data.aspects) {
         const aspectUa = ASPECT_NAMES[a.aspect] || a.aspect;
-        const betweenUa = a.between.map(x=>PLANET_NAMES[x]||x).join(' – ');
+        const betweenUa = a.between.map(x => PLANET_NAMES[x] || x).join(' – ');
         html += `<tr><td>${aspectUa}</td><td>${betweenUa}</td><td>${a.angle.toFixed(2)}</td></tr>`;
       }
       html += `</tbody></table>`;
 
       content.innerHTML += html;
     }
-
-    // Показываем кнопку PDF
-    document.getElementById("btn-pdf").style.display = "block";
   })();
-
-  function downloadPDF() {
-    const container = document.getElementById("pdf-container");
-    html2pdf().from(container).set({
-      margin: 1,
-      filename: 'efemeridy.pdf',
-      image: { type:'jpeg', quality:0.98 },
-      html2canvas: { scale: 2 },
-      jsPDF: { unit:'cm', format:'a4', orientation:'portrait' }
-    }).save();
-  }
   </script>
 </body>
 </html>
