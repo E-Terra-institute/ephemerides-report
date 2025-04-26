@@ -137,7 +137,7 @@
         .map(n => String(n).padStart(2,'0')).join(':');
 
       const [Y,M,D] = date.split('-');
-      const apiUrl = `https://ephemerides-api.onrender.com/ephemerides`
+      const apiUrl = `https://ephemerides-api-1.onrender.com/ephemerides`
         + `?year=${Y}&month=${M}&day=${D}&time=${tp}&lat=${lat}&lon=${lon}`;
       let data;
       try {
